@@ -240,6 +240,26 @@ def search():
     return utils.RESPONSE_FORMAT % json.dumps(users)
 
 
+@app.route('/messages.poll')
+def poll():
+    req_id = get_user_id(request)
+    data = request.args
+    if 'next_from' not in data:
+        return utils.get_extended_error_by_code(1, 'next_from')
+    next_from = data['next_from']
+    start_time = utils.get_time()
+    while True:
+        if utils.get_time() - start_time > 40:
+            return utils.RESPONSE_FORMAT % '[]'
+        messages = Message.query\
+            .filter(((Message.from_id == req_id) | (Message.to_id == req_id)) &
+                    (Message.id > next_from)).all()
+        if messages is not None and len(messages) > 0:
+            messages = [message.as_ui_obj(req_id) for message in messages]
+            return utils.RESPONSE_FORMAT % json.dumps(messages)
+        utils.sleep()
+
+
 log_table()
 if __name__ == "__main__":
     db.create_all()
