@@ -24,11 +24,14 @@ class User(db.Model):
         self.last_seen = utils.get_time()
 
     def __repr__(self):
-        return {'id': self.id, 'name': self.name,
-                'photo': self.photo, 'last_seen': self.last_seen}
+        return self.__str__()
 
     def __str__(self):
-        return json.dumps(self.__repr__())
+        return json.dumps(self.as_ui_obj())
+
+    def as_ui_obj(self):
+        return {'id': self.id, 'name': self.name,
+                'photo': self.photo, 'last_seen': self.last_seen}
 
 
 class Token(db.Model):
@@ -41,10 +44,10 @@ class Token(db.Model):
         self.user_id = user_id
 
     def __repr__(self):
-        return {'id': self.id, 'token': self.token, 'user_id': self.user_id}
+        return self.__str__()
 
     def __str__(self):
-        return json.dumps(self.__repr__())
+        return json.dumps({'id': self.id, 'token': self.token, 'user_id': self.user_id})
 
 
 class Message(db.Model):
@@ -68,14 +71,23 @@ class Message(db.Model):
             self.time = row[4]
 
     def __repr__(self):
-        return {'id': self.id, 'to_id': self.to_id, 'from_id': self.from_id,
-                'text': self.text, 'time': self.time}
+        return json.dumps({'id': self.id, 'to_id': self.to_id, 'from_id': self.from_id,
+                           'text': self.text, 'time': self.time})
 
     def as_str(self, user_id):
+        return json.dumps(self.as_ui_obj(user_id))
+
+    def as_ui_obj(self, user_id):
         out = self.from_id == user_id
         peer_id = self.to_id if out else self.from_id
-        return json.dumps({'id': self.id, 'peer_id': peer_id, 'out': out,
-                           'text': self.text, 'time': self.time})
+        return {'id': self.id, 'peer_id': peer_id, 'out': out,
+                'text': self.text, 'time': self.time}
+
+
+def log_table():
+    print(Message.query.all())
+    print(User.query.all())
+    print(Token.query.all())
 
 
 def get_user_id(request):
@@ -177,14 +189,24 @@ def get_dialogs():
     group by to_id order by id desc) order by id desc limit 100""" % (req_id, req_id))
     messages = []
     for row in result:
-        messages.append(Message(row=row))
-    as_str = "["
-    for message in messages:
-        if as_str != "[":
-            as_str += ", "
-        as_str += message.as_str(req_id)
-    as_str += "]"
-    return utils.RESPONSE_FORMAT % as_str
+        messages.append(Message(row=row).as_ui_obj(req_id))
+    peer_ids = [mess['peer_id'] for mess in messages]
+    users = User.query.filter(User.id.in_(tuple(peer_ids))).all()
+    users = [user.as_ui_obj() for user in users]
+    response = {'messages': messages, 'users': users}
+    return utils.RESPONSE_FORMAT % json.dumps(response)
+
+
+@app.route('/messages.get/<user_id>')
+def get_chat(user_id):
+    user_id = int(user_id)
+    req_id = get_user_id(request)
+    messages = Message.query\
+        .filter(((Message.to_id == req_id) & (Message.from_id == user_id)) |
+                ((Message.from_id == req_id) & (Message.to_id == user_id)))\
+        .order_by(Message.id.desc())
+    messages = [message.as_ui_obj(req_id) for message in messages]
+    return utils.RESPONSE_FORMAT % json.dumps(messages)
 
 
 @app.route('/messages.send', methods=['POST'])
@@ -206,6 +228,19 @@ def send_message():
     return utils.RESPONSE_FORMAT % str(mess_id)
 
 
+@app.route('/user.search')
+def search():
+    get_user_id(request)
+    data = request.args
+    if 'q' not in data:
+        return utils.get_extended_error_by_code(1, 'q')
+    query = data['q']
+    users = User.query.filter(User.name.contains(query)).all()
+    users = [user.as_ui_obj() for user in users]
+    return utils.RESPONSE_FORMAT % json.dumps(users)
+
+
+log_table()
 if __name__ == "__main__":
     db.create_all()
     db.init_app(app)
