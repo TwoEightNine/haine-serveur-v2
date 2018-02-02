@@ -2,6 +2,7 @@ from flask import Flask, request, abort
 from flask_sqlalchemy import SQLAlchemy
 import utils
 import json
+from keys import *
 
 app = Flask(__name__)
 app.config.from_pyfile('app.cfg')
@@ -91,10 +92,10 @@ def log_table():
 
 
 def get_user_id(request):
-    if 'auth' not in request.headers:
+    if AUTH not in request.headers:
         abort(401)
         return 0
-    auth_token = request.headers['auth']
+    auth_token = request.headers[AUTH]
     token = Token.query.filter_by(token=auth_token).first()
     if token is None:
         abort(401)
@@ -128,12 +129,12 @@ def error_handler(e):
 @app.route('/auth.signUp', methods=['POST'])
 def sign_up():
     data = request.form
-    if 'name' not in data:
-        return utils.get_extended_error_by_code(1, 'name')
-    if 'password' not in data:
-        return utils.get_extended_error_by_code(1, 'password')
-    name = data['name']
-    password = data['password']
+    if NAME not in data:
+        return utils.get_extended_error_by_code(1, NAME)
+    if PASSWORD not in data:
+        return utils.get_extended_error_by_code(1, PASSWORD)
+    name = data[NAME]
+    password = data[PASSWORD]
     exists = User.query.filter_by(name=name).count() != 0
     if exists:
         return utils.get_extended_error_by_code(2, name)
@@ -149,12 +150,12 @@ def sign_up():
 @app.route('/auth.logIn', methods=['POST'])
 def log_in():
     data = request.form
-    if 'name' not in data:
-        return utils.get_extended_error_by_code(1, 'name')
-    if 'password' not in data:
-        return utils.get_extended_error_by_code(1, 'password')
-    name = data['name']
-    password = data['password']
+    if NAME not in data:
+        return utils.get_extended_error_by_code(1, NAME)
+    if PASSWORD not in data:
+        return utils.get_extended_error_by_code(1, PASSWORD)
+    name = data[NAME]
+    password = data[PASSWORD]
     exists = User.query.filter_by(name=name).count() != 0
     if not exists:
         return utils.get_error_by_code(3)
@@ -180,6 +181,19 @@ def get_user(user_id):
     return utils.RESPONSE_FORMAT % str(user)
 
 
+@app.route('/user.photo')
+def save_photo():
+    req_id = get_user_id(request)
+    data = request.form
+    if PHOTO not in data:
+        return utils.get_extended_error_by_code(1, PHOTO)
+    photo = data[PHOTO]
+    user = User.query.filter_by(id=req_id).first()
+    user.photo = photo
+    db.session.commit()
+    return utils.RESPONSE_FORMAT % '1'
+
+
 @app.route('/messages.getDialogs')
 def get_dialogs():
     req_id = get_user_id(request)
@@ -201,6 +215,9 @@ def get_dialogs():
 def get_chat(user_id):
     user_id = int(user_id)
     req_id = get_user_id(request)
+    exists = User.query.filter_by(id=user_id).count()
+    if not exists:
+        return utils.get_extended_error_by_code(4, user_id)
     messages = Message.query\
         .filter(((Message.to_id == req_id) & (Message.from_id == user_id)) |
                 ((Message.from_id == req_id) & (Message.to_id == user_id)))\
@@ -213,12 +230,15 @@ def get_chat(user_id):
 def send_message():
     req_id = get_user_id(request)
     data = request.form
-    if 'text' not in data:
-        return utils.get_extended_error_by_code(1, 'text')
-    if 'to_id' not in data:
-        return utils.get_extended_error_by_code(1, 'to_id')
-    text = data['text']
-    to_id = data['to_id']
+    if TEXT not in data:
+        return utils.get_extended_error_by_code(1, TEXT)
+    if TO_ID not in data:
+        return utils.get_extended_error_by_code(1, TO_ID)
+    text = data[TEXT]
+    to_id = data[TO_ID]
+    exists = User.query.filter_by(id=to_id).count() != 0
+    if not exists:
+        return utils.get_extended_error_by_code(4, to_id)
     message = Message(req_id, to_id, text)
     db.session.add(message)
     db.session.flush()
@@ -232,9 +252,9 @@ def send_message():
 def search():
     get_user_id(request)
     data = request.args
-    if 'q' not in data:
-        return utils.get_extended_error_by_code(1, 'q')
-    query = data['q']
+    if Q not in data:
+        return utils.get_extended_error_by_code(1, Q)
+    query = data[Q]
     users = User.query.filter(User.name.contains(query)).all()
     users = [user.as_ui_obj() for user in users]
     return utils.RESPONSE_FORMAT % json.dumps(users)
@@ -244,9 +264,9 @@ def search():
 def poll():
     req_id = get_user_id(request)
     data = request.args
-    if 'next_from' not in data:
-        return utils.get_extended_error_by_code(1, 'next_from')
-    next_from = data['next_from']
+    if NEXT_FROM not in data:
+        return utils.get_extended_error_by_code(1, NEXT_FROM)
+    next_from = data[NEXT_FROM]
     start_time = utils.get_time()
     while True:
         if utils.get_time() - start_time > 40:

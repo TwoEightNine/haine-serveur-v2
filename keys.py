@@ -1,0 +1,8 @@
+AUTH = 'auth'
+NAME = 'name'
+PASSWORD = 'password'
+PHOTO = 'photo'
+TEXT = 'text'
+TO_ID = 'to_id'
+Q = 'q'
+NEXT_FROM = 'next_from'
