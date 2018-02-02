@@ -85,6 +85,24 @@ class Message(db.Model):
                 'text': self.text, 'time': self.time}
 
 
+class ExchangeParams(db.Model):
+    id = db.Column('id', db.Integer, primary_key=True)
+    p = db.Column('p', db.String)
+    g = db.Column('g', db.String)
+    public_from = db.Column('public_from', db.String)
+    public_to = db.Column('public_to', db.String)
+    from_id = db.Column('from_id', db.Integer, db.ForeignKey('user.id'))
+    to_id = db.Column('to_id', db.Integer, db.ForeignKey('user.id'))
+
+    def __init__(self, p, g, from_id, to_id, public_from='', public_to=''):
+        self.p = p
+        self.g = g
+        self.from_id = from_id
+        self.to_id = to_id
+        self.public_from = public_from
+        self.public_to = public_to
+
+
 def log_table():
     print(Message.query.all())
     print(User.query.all())
@@ -191,7 +209,7 @@ def save_photo():
     user = User.query.filter_by(id=req_id).first()
     user.photo = photo
     db.session.commit()
-    return utils.RESPONSE_FORMAT % '1'
+    return utils.RESPONSE_1
 
 
 @app.route('/messages.getDialogs')
@@ -270,7 +288,7 @@ def poll():
     start_time = utils.get_time()
     while True:
         if utils.get_time() - start_time > 40:
-            return utils.RESPONSE_FORMAT % '[]'
+            return utils.RESPONSE_EMPTY_LIST
         messages = Message.query\
             .filter(((Message.from_id == req_id) | (Message.to_id == req_id)) &
                     (Message.id > next_from)).all()
@@ -278,6 +296,25 @@ def poll():
             messages = [message.as_ui_obj(req_id) for message in messages]
             return utils.RESPONSE_FORMAT % json.dumps(messages)
         utils.sleep()
+
+
+@app.route('/exchange.commit')
+def make_exchange():
+    req_id = get_user_id(request)
+    data = request.form
+    if P not in data:
+        return utils.get_extended_error_by_code(1, P)
+    if G not in data:
+        return utils.get_extended_error_by_code(1, G)
+    if PUBLIC not in data:
+        return utils.get_extended_error_by_code(1, PUBLIC)
+    if TO_ID not in data:
+        return utils.get_extended_error_by_code(1, TO_ID)
+    p = data[P]
+    g = data[G]
+    public = data[PUBLIC]
+    to_id = data[TO_ID]
+    return utils.RESPONSE_1
 
 
 log_table()

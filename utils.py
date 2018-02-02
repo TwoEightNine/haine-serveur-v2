@@ -6,8 +6,11 @@ import json
 
 MAX_USERS = 1000000000
 
-ERROR_FORMAT = '{"error": %d, "message": "%s" }'
+ERROR_FORMAT = '{"error": %d, "message": "%s"}'
 RESPONSE_FORMAT = '{"result": %s}'
+
+RESPONSE_1 = RESPONSE_FORMAT % '1'
+RESPONSE_EMPTY_LIST = RESPONSE_FORMAT % '[]'
 
 ERROR_DICTIONARY = {
     1: "Missed parameter: %s",
