@@ -93,6 +93,7 @@ class ExchangeParams(db.Model):
     public_to = db.Column('public_to', db.String)
     from_id = db.Column('from_id', db.Integer, db.ForeignKey('user.id'))
     to_id = db.Column('to_id', db.Integer, db.ForeignKey('user.id'))
+    last_upd = db.Column('last_upd', db.Integer)
 
     def __init__(self, p, g, from_id, to_id, public_from='', public_to=''):
         self.p = p
@@ -101,12 +102,31 @@ class ExchangeParams(db.Model):
         self.to_id = to_id
         self.public_from = public_from
         self.public_to = public_to
+        self.last_upd = utils.get_time()
+
+    def __repr__(self):
+        return self.as_str()
+
+    def as_str(self):
+        return json.dumps({'id': self.id, 'p': self.p, 'g': self.g,
+                           'from_id': self.from_id, 'to_id': self.to_id,
+                           'public_from': self.public_from, 'public_to': self.public_to,
+                           'last_upd': self.last_upd})
+
+    def as_ui_obj(self):
+        return {'p': self.p, 'g': self.g, 'from_id': self.from_id,
+                'to_id': self.to_id, 'public_from': self.public_from,
+                'public_to': self.public_to, 'last_upd': self.last_upd}
 
 
 def log_table():
-    print(Message.query.all())
-    print(User.query.all())
-    print(Token.query.all())
+    try:
+        print(Message.query.all())
+        print(User.query.all())
+        print(Token.query.all())
+        print(ExchangeParams.query.all())
+    except Exception as e:
+        print(e)
 
 
 def get_user_id(request):
@@ -189,6 +209,19 @@ def log_in():
     return utils.RESPONSE_FORMAT % utils.get_log_in_response(user.id, result_token)
 
 
+@app.route('/auth.terminate')
+def terminate_sessions():
+    req_id = get_user_id(request)
+    token = request.headers[AUTH]
+    data = request.form
+    if KEEP_CURRENT not in data:
+        return utils.get_extended_error_by_code(1, KEEP_CURRENT)
+    keep_current = int(data[KEEP_CURRENT]) == 1
+    Token.query.filter((Token.user_id == req_id) &
+                       ((Token.token != token) | ~keep_current)).delete()
+    return utils.RESPONSE_1
+
+
 @app.route('/user.get/<user_id>')
 def get_user(user_id):
     user_id = int(user_id)
@@ -253,7 +286,7 @@ def send_message():
     if TO_ID not in data:
         return utils.get_extended_error_by_code(1, TO_ID)
     text = data[TEXT]
-    to_id = data[TO_ID]
+    to_id = int(data[TO_ID])
     exists = User.query.filter_by(id=to_id).count() != 0
     if not exists:
         return utils.get_extended_error_by_code(4, to_id)
@@ -282,23 +315,42 @@ def search():
 def poll():
     req_id = get_user_id(request)
     data = request.args
-    if NEXT_FROM not in data:
-        return utils.get_extended_error_by_code(1, NEXT_FROM)
-    next_from = data[NEXT_FROM]
+    if NEXT_MESSAGE_FROM not in data:
+        return utils.get_extended_error_by_code(1, NEXT_MESSAGE_FROM)
+    if NEXT_XCHG_FROM not in data:
+        return utils.get_extended_error_by_code(1, NEXT_XCHG_FROM)
+    next_message_from = int(data[NEXT_MESSAGE_FROM])
+    next_xchg_from = int(data[NEXT_XCHG_FROM])
     start_time = utils.get_time()
+    response = {'messages': [], 'exchanges': []}
     while True:
+        should_return = False
         if utils.get_time() - start_time > 40:
-            return utils.RESPONSE_EMPTY_LIST
+            should_return = True
+
+        # getting messages
         messages = Message.query\
             .filter(((Message.from_id == req_id) | (Message.to_id == req_id)) &
-                    (Message.id > next_from)).all()
+                    (Message.id > next_message_from)).all()
         if messages is not None and len(messages) > 0:
-            messages = [message.as_ui_obj(req_id) for message in messages]
-            return utils.RESPONSE_FORMAT % json.dumps(messages)
+            response['messages'] = [message.as_ui_obj(req_id) for message in messages]
+            should_return = True
+
+        # getting exchanges
+        exchanges = ExchangeParams.query\
+            .filter(((ExchangeParams.to_id == req_id) | (ExchangeParams.from_id == req_id)) &
+                    (ExchangeParams.last_upd > next_xchg_from)).all()
+        if exchanges is not None and len(exchanges) > 0:
+            response['exchanges'] = [xchg.as_ui_obj() for xchg in exchanges]
+            should_return = True
+
+        # returning everything
+        if should_return:
+            return utils.RESPONSE_FORMAT % json.dumps(response)
         utils.sleep()
 
 
-@app.route('/exchange.commit')
+@app.route('/exchange.commit', methods=['POST'])
 def make_exchange():
     req_id = get_user_id(request)
     data = request.form
@@ -313,7 +365,20 @@ def make_exchange():
     p = data[P]
     g = data[G]
     public = data[PUBLIC]
-    to_id = data[TO_ID]
+    to_id = int(data[TO_ID])
+    exists = User.query.filter_by(id=to_id).count() != 0
+    if not exists:
+        return utils.get_extended_error_by_code(4, to_id)
+    # if user supports exchange, it exists and its from_id (id of initiator) is equal to_id (user's interlocutor)
+    xchg = ExchangeParams.query.filter((ExchangeParams.p == p) & (ExchangeParams.g == g) &
+                                       (ExchangeParams.from_id == to_id)).first()
+    if xchg is None:  # we create exchange
+        xchg = ExchangeParams(p, g, req_id, to_id, public)
+        db.session.add(xchg)
+    else:  # we support exchange
+        xchg.public_to = public
+        xchg.last_upd = utils.get_time()
+    db.session.commit()
     return utils.RESPONSE_1
 
 

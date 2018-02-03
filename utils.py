@@ -32,7 +32,7 @@ def get_time():
     return int(time.time())
 
 
-def sleep(t=1):
+def sleep(t=.5):
     time.sleep(t)
 
 
