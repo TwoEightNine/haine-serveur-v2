@@ -2,7 +2,10 @@ from flask import Flask, request, abort
 from flask_sqlalchemy import SQLAlchemy
 import utils
 import json
+import prime
 from keys import *
+
+DEBUG = True
 
 app = Flask(__name__)
 app.config.from_pyfile('app.cfg')
@@ -382,8 +385,18 @@ def make_exchange():
     return utils.RESPONSE_1
 
 
+@app.route('/exchange.safePrime')
+def safe_prime():
+    get_user_id(request)
+    actual_prime = prime.get_actual()
+    return utils.RESPONSE_FORMAT % ('"' + str(actual_prime) + '"')
+
+
 log_table()
+if not DEBUG:
+    prime.generate_async()
 if __name__ == "__main__":
     db.create_all()
     db.init_app(app)
     app.run(threaded=True)
+
