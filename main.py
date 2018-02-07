@@ -97,15 +97,17 @@ class ExchangeParams(db.Model):
     from_id = db.Column('from_id', db.Integer, db.ForeignKey('user.id'))
     to_id = db.Column('to_id', db.Integer, db.ForeignKey('user.id'))
     last_upd = db.Column('last_upd', db.Integer)
+    last_editor = db.Column('last_editor', db.Integer, db.ForeignKey('user.id'))
 
-    def __init__(self, p, g, from_id, to_id, public_from='', public_to=''):
+    def __init__(self, p, g, from_id, to_id, public_from='', public_to='', last_editor=0):
         self.p = p
         self.g = g
         self.from_id = from_id
         self.to_id = to_id
         self.public_from = public_from
         self.public_to = public_to
-        self.last_upd = utils.get_time()
+        self.last_upd = utils.get_time(True)
+        self.last_editor = last_editor
 
     def __repr__(self):
         return self.as_str()
@@ -114,12 +116,13 @@ class ExchangeParams(db.Model):
         return json.dumps({'id': self.id, 'p': self.p, 'g': self.g,
                            'from_id': self.from_id, 'to_id': self.to_id,
                            'public_from': self.public_from, 'public_to': self.public_to,
-                           'last_upd': self.last_upd})
+                           'last_upd': self.last_upd, 'last_editor': self.last_editor})
 
     def as_ui_obj(self):
         return {'p': self.p, 'g': self.g, 'from_id': self.from_id,
                 'to_id': self.to_id, 'public_from': self.public_from,
-                'public_to': self.public_to, 'last_upd': self.last_upd}
+                'public_to': self.public_to, 'last_upd': self.last_upd,
+                'last_editor': self.last_editor}
 
 
 def log_table():
@@ -376,11 +379,12 @@ def make_exchange():
     xchg = ExchangeParams.query.filter((ExchangeParams.p == p) & (ExchangeParams.g == g) &
                                        (ExchangeParams.from_id == to_id)).first()
     if xchg is None:  # we create exchange
-        xchg = ExchangeParams(p, g, req_id, to_id, public)
+        xchg = ExchangeParams(p, g, req_id, to_id, public, last_editor=req_id)
         db.session.add(xchg)
     else:  # we support exchange
         xchg.public_to = public
-        xchg.last_upd = utils.get_time()
+        xchg.last_upd = utils.get_time(True)
+        xchg.last_editor = req_id
     db.session.commit()
     return utils.RESPONSE_1
 

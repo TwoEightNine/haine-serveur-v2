@@ -28,8 +28,8 @@ ERROR_DICTIONARY = {
 }
 
 
-def get_time():
-    return int(time.time())
+def get_time(widened=False):
+    return int(time.time() * (1000 if widened else 1))
 
 
 def sleep(t=.5):
