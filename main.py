@@ -179,6 +179,10 @@ def sign_up():
         return utils.get_extended_error_by_code(1, PASSWORD)
     name = data[NAME]
     password = data[PASSWORD]
+    if len(name) < 4:
+        return utils.get_error_by_code(7)
+    if not utils.is_password_satisfied(password):
+        return utils.get_error_by_code(8)
     exists = User.query.filter_by(name=name).count() != 0
     if exists:
         return utils.get_extended_error_by_code(2, name)

@@ -19,6 +19,8 @@ ERROR_DICTIONARY = {
     4: "User with id %d does not exist",
     5: "Sticker %d does not exist",
     6: "Empty message",
+    7: "Name requires: at least 4 symbols",
+    8: "Password requires: at least 8 symbols, uppercase and lowercase letters, digits",
     400: "Bad request",
     404: "Not found",
     401: "Authorization required",
@@ -72,3 +74,8 @@ def get_peer_id(user1_id, user2_id):
 
 def get_user_ids(peer_id):
     return peer_id // MAX_USERS, peer_id % MAX_USERS
+
+
+def is_password_satisfied(password):
+    return len(password) >= 8 and password.upper() != password \
+           and password.lower() != password
