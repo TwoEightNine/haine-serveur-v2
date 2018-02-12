@@ -60,23 +60,26 @@ class Message(db.Model):
     from_id = db.Column('from_id', db.Integer, db.ForeignKey('user.id'))
     text = db.Column('text', db.String)
     time = db.Column('time', db.Integer)
+    attachment = db.Column('attachment', db.String)
 
-    def __init__(self, from_id=0, to_id=0, text='', row=None):
+    def __init__(self, from_id=0, to_id=0, text='', row=None, attachment=None):
         if row is None:
             self.to_id = to_id
             self.from_id = from_id
             self.text = text
             self.time = utils.get_time()
+            self.attachment = attachment
         else:
             self.id = row[0]
             self.to_id = row[1]
             self.from_id = row[2]
             self.text = row[3]
             self.time = row[4]
+            self.attachment = row[5]
 
     def __repr__(self):
         return json.dumps({'id': self.id, 'to_id': self.to_id, 'from_id': self.from_id,
-                           'text': self.text, 'time': self.time})
+                           'text': self.text, 'time': self.time, 'attachment': self.attachment})
 
     def as_str(self, user_id):
         return json.dumps(self.as_ui_obj(user_id))
@@ -85,7 +88,7 @@ class Message(db.Model):
         out = self.from_id == user_id
         peer_id = self.to_id if out else self.from_id
         return {'id': self.id, 'peer_id': peer_id, 'out': out,
-                'text': self.text, 'time': self.time}
+                'text': self.text, 'time': self.time, 'attachment': self.attachment}
 
 
 class ExchangeParams(db.Model):
@@ -242,7 +245,7 @@ def get_user(user_id):
     return utils.RESPONSE_FORMAT % str(user)
 
 
-@app.route('/user.photo')
+@app.route('/user.photo', methods=['POST'])
 def save_photo():
     req_id = get_user_id(request)
     data = request.form
@@ -291,16 +294,19 @@ def get_chat(user_id):
 def send_message():
     req_id = get_user_id(request)
     data = request.form
+    att = False
     if TEXT not in data:
-        return utils.get_extended_error_by_code(1, TEXT)
+        att = True
+        if ATTACHED not in data:
+            return utils.get_extended_error_by_code(1, TEXT + ' or ' + ATTACHED)
     if TO_ID not in data:
         return utils.get_extended_error_by_code(1, TO_ID)
-    text = data[TEXT]
+    content = data[ATTACHED if att else TEXT]
     to_id = int(data[TO_ID])
     exists = User.query.filter_by(id=to_id).count() != 0
     if not exists:
         return utils.get_extended_error_by_code(4, to_id)
-    message = Message(req_id, to_id, text)
+    message = Message(req_id, to_id, attachment=content) if att else Message(req_id, to_id, content)
     db.session.add(message)
     db.session.flush()
     db.session.refresh(message)
