@@ -290,23 +290,42 @@ def get_chat(user_id):
     return utils.RESPONSE_FORMAT % json.dumps(messages)
 
 
-@app.route('/messages.send', methods=['POST'])
+@app.route('/messages.sendText', methods=['POST'])
 def send_message():
     req_id = get_user_id(request)
     data = request.form
-    att = False
     if TEXT not in data:
-        att = True
-        if ATTACHED not in data:
-            return utils.get_extended_error_by_code(1, TEXT + ' or ' + ATTACHED)
+        return utils.get_extended_error_by_code(1, TEXT)
     if TO_ID not in data:
         return utils.get_extended_error_by_code(1, TO_ID)
-    content = data[ATTACHED if att else TEXT]
+    content = data[TEXT]
     to_id = int(data[TO_ID])
     exists = User.query.filter_by(id=to_id).count() != 0
     if not exists:
         return utils.get_extended_error_by_code(4, to_id)
-    message = Message(req_id, to_id, attachment=content) if att else Message(req_id, to_id, content)
+    message = Message(req_id, to_id, content)
+    db.session.add(message)
+    db.session.flush()
+    db.session.refresh(message)
+    mess_id = message.id
+    db.session.commit()
+    return utils.RESPONSE_FORMAT % str(mess_id)
+
+
+@app.route('/messages.sendFile', methods=['POST'])
+def send_attachment():
+    req_id = get_user_id(request)
+    data = request.form
+    if ATTACHED not in data:
+        return utils.get_extended_error_by_code(1, ATTACHED)
+    if TO_ID not in data:
+        return utils.get_extended_error_by_code(1, TO_ID)
+    content = data[ATTACHED]
+    to_id = int(data[TO_ID])
+    exists = User.query.filter_by(id=to_id).count() != 0
+    if not exists:
+        return utils.get_extended_error_by_code(4, to_id)
+    message = Message(req_id, to_id, attachment=content)
     db.session.add(message)
     db.session.flush()
     db.session.refresh(message)
