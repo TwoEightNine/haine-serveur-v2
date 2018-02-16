@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 import utils
 import json
 import prime
+import logging
 from keys import *
 
 DEBUG = True
@@ -182,7 +183,7 @@ def sign_up():
         return utils.get_extended_error_by_code(1, PASSWORD)
     name = data[NAME]
     password = data[PASSWORD]
-    if len(name) < 4:
+    if not utils.is_name_valid(name):
         return utils.get_error_by_code(7)
     if not utils.is_password_satisfied(password):
         return utils.get_error_by_code(8)
@@ -431,5 +432,6 @@ if not DEBUG:
 if __name__ == "__main__":
     db.create_all()
     db.init_app(app)
+    app.logger.setLevel(logging.DEBUG)
     app.run(threaded=True)
 

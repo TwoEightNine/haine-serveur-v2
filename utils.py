@@ -3,6 +3,7 @@ import string
 import time
 import hashlib
 import json
+import re
 
 MAX_USERS = 1000000000
 
@@ -11,6 +12,7 @@ RESPONSE_FORMAT = '{"result": %s}'
 
 RESPONSE_1 = RESPONSE_FORMAT % '1'
 RESPONSE_EMPTY_LIST = RESPONSE_FORMAT % '[]'
+NAME_REGEX = r'^[A-Za-z0-9]{4,24}$'
 
 ERROR_DICTIONARY = {
     1: "Missed parameter: %s",
@@ -19,12 +21,12 @@ ERROR_DICTIONARY = {
     4: "User with id %d does not exist",
     5: "Sticker %d does not exist",
     6: "Empty message",
-    7: "Name requires: at least 4 symbols",
+    7: "Name may only contain latin characters, digits and underscore",
     8: "Password requires: at least 8 symbols, uppercase and lowercase letters, digits",
     400: "Bad request",
-    404: "Not found",
     401: "Authorization required",
     403: "Forbidden",
+    404: "Not found",
     405: "Method not allowed",
     500: "Internal server error"
 }
@@ -79,3 +81,7 @@ def get_user_ids(peer_id):
 def is_password_satisfied(password):
     return len(password) >= 8 and password.upper() != password \
            and password.lower() != password
+
+
+def is_name_valid(name):
+    return bool(re.match(NAME_REGEX, name))
