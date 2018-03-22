@@ -7,6 +7,8 @@ import logging
 from keys import *
 
 DEBUG = True
+HOST = '0.0.0.0'
+PORT = 1753
 
 app = Flask(__name__)
 app.config.from_pyfile('app.cfg')
@@ -433,5 +435,5 @@ if __name__ == "__main__":
     db.create_all()
     db.init_app(app)
     app.logger.setLevel(logging.DEBUG)
-    app.run(threaded=True)
+    app.run(threaded=True, host=HOST, port=PORT)
 
