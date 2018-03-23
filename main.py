@@ -1,10 +1,10 @@
 from flask import Flask, request, abort
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.exc import SQLAlchemyError
 import utils
 import json
 import prime
 import logging
+import os
 from keys import *
 
 DEBUG = True
@@ -12,7 +12,10 @@ HOST = '0.0.0.0'
 PORT = 1753
 
 app = Flask(__name__)
+db_path = os.path.join(os.path.dirname(__file__), 'haine.db')
+db_uri = 'sqlite:///%s' % db_path
 app.config.from_pyfile('app.cfg')
+app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
 db = SQLAlchemy(app)
 
 
@@ -432,12 +435,9 @@ def safe_prime():
 log_table()
 if not DEBUG:
     prime.generate_async()
+
 if __name__ == "__main__":
-    try:
-        Token.query.all()
-    except SQLAlchemyError as e:
-        print(e)
-        db.create_all()
+    db.create_all()
     db.init_app(app)
     app.logger.setLevel(logging.DEBUG)
     app.run(threaded=True, host=HOST, port=PORT)
