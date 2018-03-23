@@ -1,5 +1,6 @@
 from flask import Flask, request, abort
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.exc import SQLAlchemyError
 import utils
 import json
 import prime
@@ -432,7 +433,11 @@ log_table()
 if not DEBUG:
     prime.generate_async()
 if __name__ == "__main__":
-    db.create_all()
+    try:
+        Token.query.all()
+    except SQLAlchemyError as e:
+        print(e)
+        db.create_all()
     db.init_app(app)
     app.logger.setLevel(logging.DEBUG)
     app.run(threaded=True, host=HOST, port=PORT)
