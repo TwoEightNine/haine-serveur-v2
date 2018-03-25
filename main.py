@@ -7,7 +7,6 @@ import logging
 import os
 from keys import *
 
-DEBUG = True
 HOST = '0.0.0.0'
 PORT = 1753
 
@@ -433,8 +432,6 @@ def safe_prime():
 
 
 log_table()
-if not DEBUG:
-    prime.generate_async()
 
 if __name__ == "__main__":
     db.create_all()
