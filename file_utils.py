@@ -1,8 +1,8 @@
 from base64 import b64decode
 import os
 
-STICKERS_DIR = '/tmp/stickers/'
-AVATARS_DIR = '/tmp/avatar/'
+STICKERS_DIR = os.path.join(os.path.dirname(__file__), 'stickers/')
+AVATARS_DIR = os.path.join(os.path.dirname(__file__), 'avatar/')
 
 STUB_PATH = 'haine.png'
 
@@ -16,7 +16,6 @@ def init_before():
 
 
 def save_sticker(sticker, id):
-    init_before()
     try:
         sticker = b64decode(sticker)
     except TypeError as e:
@@ -34,7 +33,6 @@ def get_sticker_path(id):
 
 
 def save_avatar(avatar, id):
-    init_before()
     try:
         avatar = b64decode(avatar)
     except TypeError:

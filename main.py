@@ -527,6 +527,7 @@ def user_remove_photo():
 
 
 log_table()
+file_utils.init_before()
 
 if __name__ == "__main__":
     db.create_all()
