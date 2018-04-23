@@ -25,6 +25,7 @@ ERROR_DICTIONARY = {
     8: "Password requires: at least 8 symbols, uppercase and lowercase letters, digits",
     9: "Sticker has a wrong format",
     10: "Photo has a wrong format",
+    11: "You are already logged in on other device. Forbidden",
     400: "Bad request",
     401: "Authorization required",
     403: "Forbidden",

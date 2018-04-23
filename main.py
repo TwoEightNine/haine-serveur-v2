@@ -8,7 +8,7 @@ import os
 from keys import *
 import file_utils
 
-HOST = '127.0.0.1'  # '0.0.0.0'
+HOST = '0.0.0.0'
 PORT = 1753
 
 app = Flask(__name__)
@@ -241,6 +241,9 @@ def log_in():
     user = User.query.filter_by(name=name).first()
     if utils.get_hash(password + user.salt) != user.password_hash:
         return utils.get_error_by_code(3)
+    token = Token.query.filter_by(user_id=user.id).first()
+    if token is not None:
+        return utils.get_error_by_code(11)
     token = Token(name, password, user.id)
     db.session.add(token)
     db.session.flush()
