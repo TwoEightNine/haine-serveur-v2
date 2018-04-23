@@ -23,6 +23,8 @@ ERROR_DICTIONARY = {
     6: "Empty message",
     7: "Name may only contain latin characters, digits and underscore",
     8: "Password requires: at least 8 symbols, uppercase and lowercase letters, digits",
+    9: "Sticker has a wrong format",
+    10: "Photo has a wrong format",
     400: "Bad request",
     401: "Authorization required",
     403: "Forbidden",

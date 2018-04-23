@@ -1,4 +1,4 @@
-from flask import Flask, request, abort
+from flask import Flask, request, abort, send_file
 from flask_sqlalchemy import SQLAlchemy
 import utils
 import json
@@ -6,8 +6,9 @@ import prime
 import logging
 import os
 from keys import *
+import file_utils
 
-HOST = '0.0.0.0'
+HOST = '127.0.0.1'  # '0.0.0.0'
 PORT = 1753
 
 app = Flask(__name__)
@@ -23,12 +24,10 @@ class User(db.Model):
     name = db.Column('name', db.String(30), unique=True)
     password_hash = db.Column('pass_hash', db.String(64))
     salt = db.Column('salt', db.String(16))
-    photo = db.Column('photo', db.String)
     last_seen = db.Column('last_seen', db.Integer)
 
-    def __init__(self, name, password, photo=None):
+    def __init__(self, name, password):
         self.name = name
-        self.photo = photo
         self.salt = utils.get_salt()
         self.password_hash = utils.get_hash(password + self.salt)
         self.last_seen = utils.get_time()
@@ -40,8 +39,7 @@ class User(db.Model):
         return json.dumps(self.as_ui_obj())
 
     def as_ui_obj(self):
-        return {'id': self.id, 'name': self.name,
-                'photo': self.photo, 'last_seen': self.last_seen}
+        return {'id': self.id, 'name': self.name, 'last_seen': self.last_seen}
 
 
 class Token(db.Model):
@@ -67,14 +65,16 @@ class Message(db.Model):
     text = db.Column('text', db.String)
     time = db.Column('time', db.Integer)
     attachment = db.Column('attachment', db.String)
+    sticker_id = db.Column('sticker_id', db.Integer, db.ForeignKey('sticker.id'))
 
-    def __init__(self, from_id=0, to_id=0, text='', row=None, attachment=None):
+    def __init__(self, from_id=0, to_id=0, text='', row=None, attachment=None, sticker_id=None):
         if row is None:
             self.to_id = to_id
             self.from_id = from_id
             self.text = text
             self.time = utils.get_time()
             self.attachment = attachment
+            self.sticker_id = sticker_id
         else:
             self.id = row[0]
             self.to_id = row[1]
@@ -82,10 +82,12 @@ class Message(db.Model):
             self.text = row[3]
             self.time = row[4]
             self.attachment = row[5]
+            self.sticker_id = row[6]
 
     def __repr__(self):
         return json.dumps({'id': self.id, 'to_id': self.to_id, 'from_id': self.from_id,
-                           'text': self.text, 'time': self.time, 'attachment': self.attachment})
+                           'text': self.text, 'time': self.time, 'attachment': self.attachment,
+                           'sticker_id': self.sticker_id})
 
     def as_str(self, user_id):
         return json.dumps(self.as_ui_obj(user_id))
@@ -93,8 +95,10 @@ class Message(db.Model):
     def as_ui_obj(self, user_id):
         out = self.from_id == user_id
         peer_id = self.to_id if out else self.from_id
+        sticker_id = 0 if self.sticker_id is None else self.sticker_id
         return {'id': self.id, 'peer_id': peer_id, 'out': out,
-                'text': self.text, 'time': self.time, 'attachment': self.attachment}
+                'text': self.text, 'time': self.time, 'attachment': self.attachment,
+                'sticker_id': sticker_id}
 
 
 class ExchangeParams(db.Model):
@@ -134,12 +138,30 @@ class ExchangeParams(db.Model):
                 'last_editor': self.last_editor}
 
 
+class Sticker(db.Model):
+    id = db.Column('id', db.Integer, primary_key=True)
+    owner_id = db.Column('owner_id', db.Integer, db.ForeignKey('user.id'))
+
+    def __init__(self, owner_id):
+        self.owner_id = owner_id
+
+    def __repr__(self):
+        return json.dumps({'id': self.id, 'owner_id': self.owner_id})
+
+    def __str__(self):
+        return json.dumps(self.as_ui_obj())
+
+    def as_ui_obj(self):
+        return {'id': self.id}
+
+
 def log_table():
     try:
         print(Message.query.all())
         print(User.query.all())
         print(Token.query.all())
         print(ExchangeParams.query.all())
+        print(Sticker.query.all())
     except Exception as e:
         print(e)
 
@@ -251,19 +273,6 @@ def get_user(user_id):
     return utils.RESPONSE_FORMAT % str(user)
 
 
-@app.route('/user.photo', methods=['POST'])
-def save_photo():
-    req_id = get_user_id(request)
-    data = request.form
-    if PHOTO not in data:
-        return utils.get_extended_error_by_code(1, PHOTO)
-    photo = data[PHOTO]
-    user = User.query.filter_by(id=req_id).first()
-    user.photo = photo
-    db.session.commit()
-    return utils.RESPONSE_1
-
-
 @app.route('/messages.getDialogs')
 def get_dialogs():
     req_id = get_user_id(request)
@@ -332,6 +341,28 @@ def send_attachment():
     if not exists:
         return utils.get_extended_error_by_code(4, to_id)
     message = Message(req_id, to_id, attachment=content)
+    db.session.add(message)
+    db.session.flush()
+    db.session.refresh(message)
+    mess_id = message.id
+    db.session.commit()
+    return utils.RESPONSE_FORMAT % str(mess_id)
+
+
+@app.route('/messages.sendSticker', methods=['POST'])
+def send_sticker():
+    req_id = get_user_id(request)
+    data = request.form
+    if STICKER_ID not in data:
+        return utils.get_extended_error_by_code(1, STICKER_ID)
+    if TO_ID not in data:
+        return utils.get_extended_error_by_code(1, TO_ID)
+    sticker_id = int(data[STICKER_ID])
+    to_id = int(data[TO_ID])
+    exists = User.query.filter_by(id=to_id).count() != 0
+    if not exists:
+        return utils.get_extended_error_by_code(4, to_id)
+    message = Message(req_id, to_id, sticker_id=sticker_id)
     db.session.add(message)
     db.session.flush()
     db.session.refresh(message)
@@ -429,6 +460,67 @@ def safe_prime():
     get_user_id(request)
     actual_prime = prime.get_actual()
     return utils.RESPONSE_FORMAT % ('"' + str(actual_prime) + '"')
+
+
+@app.route('/stickers.get')
+def stickers_get():
+    get_user_id(request)
+    count = Sticker.query.count()
+    return utils.RESPONSE_FORMAT % str(count)
+
+
+@app.route('/stickers.upload', methods=['POST'])
+def sticker_upload():
+    req_id = get_user_id(request)
+    data = request.form
+    if STICKER not in data:
+        return utils.get_extended_error_by_code(1, STICKER)
+    sticker = data[STICKER]
+    sticker_id = Sticker.query.order_by(Sticker.id.desc()).first()
+    if sticker_id is None:
+        sticker_id = 0
+    sticker_id += 1
+    saved = file_utils.save_sticker(sticker, sticker_id)
+    if saved:
+        new_sticker = Sticker(req_id)
+        db.session.add(new_sticker)
+        db.session.commit()
+        return utils.RESPONSE_FORMAT % str(sticker_id)
+    else:
+        return utils.get_error_by_code(9)
+
+
+@app.route('/stickers.direct/<sticker_id>')
+def sticker_direct(sticker_id):
+    sticker_id = int(sticker_id)
+    return send_file(file_utils.get_sticker_path(sticker_id), 'image/png')
+
+
+@app.route('/user.avatar/<user_id>')
+def avatar_direct(user_id):
+    user_id = int(user_id)
+    return send_file(file_utils.get_avatar_path(user_id, True), 'image/*')
+
+
+@app.route('/user.uploadPhoto', methods=['POST'])
+def user_upload_photo():
+    req_id = get_user_id(request)
+    data = request.form
+    if AVATAR not in data:
+        return utils.get_extended_error_by_code(1, AVATAR)
+    avatar = data[AVATAR]
+    saved = file_utils.save_avatar(avatar, req_id)
+    if saved:
+        return utils.RESPONSE_1
+    else:
+        return utils.get_error_by_code(10)
+
+
+@app.route('/user.removePhoto', methods=['POST'])
+def user_remove_photo():
+    req_id = get_user_id(request)
+    file_utils.remove_avatar(req_id)
+    return utils.RESPONSE_1
 
 
 log_table()
