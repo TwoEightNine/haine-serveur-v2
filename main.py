@@ -256,13 +256,7 @@ def log_in():
 @app.route('/auth.terminate')
 def terminate_sessions():
     req_id = get_user_id(request)
-    token = request.headers[AUTH]
-    data = request.form
-    if KEEP_CURRENT not in data:
-        return utils.get_extended_error_by_code(1, KEEP_CURRENT)
-    keep_current = int(data[KEEP_CURRENT]) == 1
-    Token.query.filter((Token.user_id == req_id) &
-                       ((Token.token != token) | ~keep_current)).delete()
+    Token.query.filter(Token.user_id == req_id).delete()
     return utils.RESPONSE_1
 
 
