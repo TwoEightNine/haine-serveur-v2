@@ -473,9 +473,8 @@ def sticker_upload():
     if STICKER not in data:
         return utils.get_extended_error_by_code(1, STICKER)
     sticker = data[STICKER]
-    sticker_id = Sticker.query.order_by(Sticker.id.desc()).first()
-    if sticker_id is None:
-        sticker_id = 0
+    last_sticker = Sticker.query.order_by(Sticker.id.desc()).first()
+    sticker_id = 0 if last_sticker is None else last_sticker.id
     sticker_id += 1
     saved = file_utils.save_sticker(sticker, sticker_id)
     if saved:
