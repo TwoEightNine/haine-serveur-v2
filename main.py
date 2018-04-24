@@ -243,7 +243,7 @@ def log_in():
         return utils.get_error_by_code(3)
     token = Token.query.filter_by(user_id=user.id).first()
     if token is not None:
-        return utils.get_error_by_code(11)
+        db.session.delete(token)
     token = Token(name, password, user.id)
     db.session.add(token)
     db.session.flush()
