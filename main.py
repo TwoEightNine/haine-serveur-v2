@@ -260,6 +260,24 @@ def terminate_sessions():
     return utils.RESPONSE_1
 
 
+@app.route('/auth.changePassword', methods=['POST'])
+def change_password():
+    req_id = get_user_id(request)
+    data = request.form
+    if PASSWORD not in data:
+        return utils.get_extended_error_by_code(1, PASSWORD)
+    if NEW_PASSWORD not in data:
+        return utils.get_extended_error_by_code(1, NEW_PASSWORD)
+    password = data[PASSWORD]
+    new_password = data[NEW_PASSWORD]
+    user = User.query.filter_by(id=req_id).first()
+    if user.password_hash != utils.get_hash(password + user.salt):
+        return utils.get_error_by_code(3)
+    user.password_hash = utils.get_hash(new_password + user.salt)
+    db.session.commit()
+    return utils.RESPONSE_1
+
+
 @app.route('/user.get/<user_id>')
 def get_user(user_id):
     user_id = int(user_id)
