@@ -7,6 +7,7 @@ import logging
 import os
 from keys import *
 import file_utils
+import mail_utils
 
 HOST = '0.0.0.0'
 PORT = 1753
@@ -17,6 +18,7 @@ db_uri = 'sqlite:///%s' % db_path
 app.config.from_pyfile('app.cfg')
 app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
 db = SQLAlchemy(app)
+mail = mail_utils.MailServer()
 
 
 class User(db.Model):
@@ -25,12 +27,16 @@ class User(db.Model):
     password_hash = db.Column('pass_hash', db.String(64))
     salt = db.Column('salt', db.String(16))
     last_seen = db.Column('last_seen', db.Integer)
+    email = db.Column('email', db.String(70))
 
     def __init__(self, name, password):
         self.name = name
         self.salt = utils.get_salt()
         self.password_hash = utils.get_hash(password + self.salt)
         self.last_seen = utils.get_time()
+
+    def is_activated(self):
+        return self.email is not None and self.email != ""
 
     def __repr__(self):
         return self.__str__()
@@ -155,6 +161,26 @@ class Sticker(db.Model):
         return {'id': self.id}
 
 
+class Confirmation(db.Model):
+    id = db.Integer('id', db.Integer, primary_key=True)
+    name = db.Column('name', db.String(30), unique=True)
+    code = db.Column('code', db.String(64))
+    email = db.Column('email', db.String(70))
+
+    def __init__(self, name, email):
+        self.name = name
+        self.email = email
+        self.code = utils.get_hash(name + email + str(utils.get_time(True)))
+
+    def __repr__(self):
+        return self.__str__()
+
+    def __str__(self):
+        return json.dumps({"name": self.name,
+                           "code": self.code,
+                           "email": self.email})
+
+
 def log_table():
     try:
         print(Message.query.all())
@@ -162,6 +188,7 @@ def log_table():
         print(Token.query.all())
         print(ExchangeParams.query.all())
         print(Sticker.query.all())
+        print(Confirmation.query.all())
     except Exception as e:
         print(e)
 
@@ -274,6 +301,22 @@ def change_password():
     if user.password_hash != utils.get_hash(password + user.salt):
         return utils.get_error_by_code(3)
     user.password_hash = utils.get_hash(new_password + user.salt)
+    db.session.commit()
+    return utils.RESPONSE_1
+
+
+@app.route('/auth.restore', methods=['POST'])
+def restore_password():
+    data = request.form
+    if EMAIL not in data:
+        return utils.get_extended_error_by_code(1, EMAIL)
+    email = data[EMAIL]
+    user = User.query.filter_by(email=email).first()
+    if user is None:
+        return utils.get_error_by_code(12)
+    new_pass = utils.get_salt(8)
+    mail.send_password(email, new_pass)
+    user.password_hash = utils.get_hash(new_pass + user.salt)
     db.session.commit()
     return utils.RESPONSE_1
 

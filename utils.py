@@ -26,6 +26,7 @@ ERROR_DICTIONARY = {
     9: "Sticker must have a PNG format and be not larger than 512x512",
     10: "Photo must have a JPG or PNG format and be not larger than 4MB",
     11: "You are already logged in on other device. Forbidden",
+    12: "Wrong email",
     400: "Bad request",
     401: "Authorization required",
     403: "Forbidden",
