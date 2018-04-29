@@ -9,7 +9,7 @@ from keys import *
 import file_utils
 import mail_utils
 
-HOST = '0.0.0.0'
+HOST = 'localhost'  # '0.0.0.0'
 PORT = 1753
 
 app = Flask(__name__)
@@ -303,6 +303,8 @@ def log_in():
     user = User.query.filter_by(name=name).first()
     if utils.get_hash(password + user.salt) != user.password_hash:
         return utils.get_error_by_code(3)
+    if not user.is_activated():
+        return utils.get_error_by_code(15)
     token = Token.query.filter_by(user_id=user.id).first()
     if token is not None:
         db.session.delete(token)

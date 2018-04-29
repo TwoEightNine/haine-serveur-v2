@@ -1,9 +1,9 @@
 import smtplib
 from secret import PASSWORD
 
-SMTP_HOST = 'smtp.gmail.com'
-SMTP_PORT = 587
-EMAIL = ""
+SMTP_HOST = 'smtp.bk.ru'
+SMTP_PORT = 25
+EMAIL = "haine.officielle@bk.ru"
 ACTIVATION_LINK = "localhost:1753/activate?code=%s"
 
 MESSAGE_CODE = """You have successfully signed up!
