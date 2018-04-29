@@ -4,7 +4,7 @@ from secret import PASSWORD
 SMTP_HOST = 'smtp.gmail.com'
 SMTP_PORT = 587
 EMAIL = ""
-ACTIVATION_LINK = "url?code=%s"
+ACTIVATION_LINK = "localhost:1753/activate?code=%s"
 
 MESSAGE_CODE = """You have successfully signed up!
 For activating your account open this link: %s"""

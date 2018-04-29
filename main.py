@@ -162,7 +162,7 @@ class Sticker(db.Model):
 
 
 class Confirmation(db.Model):
-    id = db.Integer('id', db.Integer, primary_key=True)
+    id = db.Column('id', db.Integer, primary_key=True)
     name = db.Column('name', db.String(30), unique=True)
     code = db.Column('code', db.String(64))
     email = db.Column('email', db.String(70))
@@ -193,7 +193,7 @@ def log_table():
         print(e)
 
 
-def get_user_id(request):
+def get_user_id(request, mark_online=True):
     if AUTH not in request.headers:
         abort(401)
         return 0
@@ -203,9 +203,10 @@ def get_user_id(request):
         abort(401)
         return 0
     user_id = token.user_id
-    user = User.query.filter_by(id=user_id).first()
-    user.last_seen = utils.get_time()
-    db.session.commit()
+    if mark_online:
+        user = User.query.filter_by(id=user_id).first()
+        user.last_seen = utils.get_time()
+        db.session.commit()
     return user_id
 
 
@@ -228,6 +229,22 @@ def error_handler(e):
     return utils.get_error_by_code(code)
 
 
+@app.route('/activate')
+def activate():
+    data = request.args
+    if CODE not in data:
+        return utils.get_extended_error_by_code(1, CODE)
+    code = data[CODE]
+    confirm = Confirmation.query.filter_by(code=code).first()
+    if confirm is None:
+        return utils.get_error_by_code(13)
+    user = User.query.filter_by(name=confirm.name).first()
+    user.email = confirm.email
+    db.session.delete(confirm)
+    db.session.commit()
+    return utils.ACTIVATED
+
+
 @app.route('/auth.signUp', methods=['POST'])
 def sign_up():
     data = request.form
@@ -235,8 +252,11 @@ def sign_up():
         return utils.get_extended_error_by_code(1, NAME)
     if PASSWORD not in data:
         return utils.get_extended_error_by_code(1, PASSWORD)
+    if EMAIL not in data:
+        return utils.get_extended_error_by_code(1, EMAIL)
     name = data[NAME]
     password = data[PASSWORD]
+    email = data[EMAIL]
     if not utils.is_name_valid(name):
         return utils.get_error_by_code(7)
     if not utils.is_password_satisfied(password):
@@ -244,12 +264,27 @@ def sign_up():
     exists = User.query.filter_by(name=name).count() != 0
     if exists:
         return utils.get_extended_error_by_code(2, name)
+
+    exists = User.query.filter_by(email=email).count() != 0
+    if exists:
+        return utils.get_error_by_code(14)
+
+    # create user
     user = User(name, password)
     db.session.add(user)
     db.session.flush()
     db.session.refresh(user)
     result_id = user.id
+
+    # create confirmation code
+    confirm = Confirmation(name, email)
+    db.session.add(confirm)
+    db.session.flush()
+    db.session.refresh(confirm)
     db.session.commit()
+
+    # send mail
+    mail.send_code(confirm.email, confirm.code)
     return utils.RESPONSE_FORMAT % result_id
 
 
@@ -297,6 +332,10 @@ def change_password():
         return utils.get_extended_error_by_code(1, NEW_PASSWORD)
     password = data[PASSWORD]
     new_password = data[NEW_PASSWORD]
+
+    if not utils.is_password_satisfied(new_password):
+        return utils.get_error_by_code(8)
+
     user = User.query.filter_by(id=req_id).first()
     if user.password_hash != utils.get_hash(password + user.salt):
         return utils.get_error_by_code(3)
@@ -443,7 +482,7 @@ def search():
 
 @app.route('/messages.poll')
 def poll():
-    req_id = get_user_id(request)
+    req_id = get_user_id(request, False)
     data = request.args
     if NEXT_MESSAGE_FROM not in data:
         return utils.get_extended_error_by_code(1, NEXT_MESSAGE_FROM)

@@ -13,6 +13,7 @@ RESPONSE_FORMAT = '{"result": %s}'
 RESPONSE_1 = RESPONSE_FORMAT % '1'
 RESPONSE_EMPTY_LIST = RESPONSE_FORMAT % '[]'
 NAME_REGEX = r'^[A-Za-z0-9]{4,24}$'
+ACTIVATED = "Your account has been successfully activated!"
 
 ERROR_DICTIONARY = {
     1: "Missed parameter: %s",
@@ -27,6 +28,8 @@ ERROR_DICTIONARY = {
     10: "Photo must have a JPG or PNG format and be not larger than 4MB",
     11: "You are already logged in on other device. Forbidden",
     12: "Wrong email",
+    13: "Code is not valid",
+    14: "Email is already in use",
     400: "Bad request",
     401: "Authorization required",
     403: "Forbidden",
