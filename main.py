@@ -9,7 +9,7 @@ from keys import *
 import file_utils
 import mail_utils
 
-HOST = 'localhost'  # '0.0.0.0'
+HOST = '0.0.0.0'
 PORT = 1753
 
 app = Flask(__name__)
