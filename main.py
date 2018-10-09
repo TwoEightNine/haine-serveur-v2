@@ -269,13 +269,6 @@ def sign_up():
     if exists:
         return utils.get_error_by_code(14)
 
-    # create user
-    user = User(name, password)
-    db.session.add(user)
-    db.session.flush()
-    db.session.refresh(user)
-    result_id = user.id
-
     # create confirmation code
     confirm = Confirmation(name, email)
     db.session.add(confirm)
@@ -287,8 +280,19 @@ def sign_up():
     try:
         mail.send_code(confirm.email, confirm.code)
     except Exception as e:
+        db.session.delete(confirm)
+        db.session.commit()
         print(e)
         return utils.get_error_by_code(16)
+
+    # create user
+    user = User(name, password)
+    db.session.add(user)
+    db.session.flush()
+    db.session.refresh(user)
+    db.session.commit()
+    result_id = user.id
+
     return utils.RESPONSE_FORMAT % result_id
 
 
@@ -325,6 +329,7 @@ def log_in():
 def terminate_sessions():
     req_id = get_user_id(request)
     Token.query.filter(Token.user_id == req_id).delete()
+    db.session.commit()
     return utils.RESPONSE_1
 
 
