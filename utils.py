@@ -31,6 +31,7 @@ ERROR_DICTIONARY = {
     13: "Code is not valid",
     14: "Email is already in use",
     15: "Account is not activated. Please follow the instructions that are sent to your email",
+    16: "Unable to use this email",
     400: "Bad request",
     401: "Authorization required",
     403: "Forbidden",

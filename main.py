@@ -284,7 +284,11 @@ def sign_up():
     db.session.commit()
 
     # send mail
-    mail.send_code(confirm.email, confirm.code)
+    try:
+        mail.send_code(confirm.email, confirm.code)
+    except Exception as e:
+        print(e)
+        return utils.get_error_by_code(16)
     return utils.RESPONSE_FORMAT % result_id
 
 
