@@ -37,8 +37,8 @@ class MailServer:
             self.server.sendmail(EMAIL, email, msg.as_string())
         except Exception as e:
             print(e)
-            self.__del__()
             self.__init__()
+            self.__send(email, html, plain, tag)
 
     def __del__(self):
         self.server.quit()
