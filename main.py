@@ -1,4 +1,4 @@
-from flask import Flask, request, abort, send_file
+from flask import Flask, request, abort, send_file, render_template
 from flask_sqlalchemy import SQLAlchemy
 import utils
 import json
@@ -227,6 +227,16 @@ def error_handler(e):
     print(e)
     code, _ = utils.get_error_data(e)
     return utils.get_error_by_code(code)
+
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_file(file_utils.get_favicon(), 'image/png')
 
 
 @app.route('/activate')

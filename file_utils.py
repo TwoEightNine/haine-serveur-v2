@@ -4,7 +4,7 @@ import os
 STICKERS_DIR = os.path.join(os.path.dirname(__file__), 'stickers/')
 AVATARS_DIR = os.path.join(os.path.dirname(__file__), 'avatar/')
 
-STUB_PATH = 'haine.png'
+STUB_PATH = 'no_photo.png'
 
 
 def init_before():
@@ -59,6 +59,10 @@ def remove_avatar(id):
     path = get_avatar_path(id)
     if os.path.isfile(path):
         os.remove(path)
+
+
+def get_favicon():
+    return get_avatar_path(0, True)
 
 
 def is_png(raw):
