@@ -11,7 +11,6 @@ ACTIVATION_LINK = "http://" + HOST + ":" + str(PORT) + "/activate?code=%s"
 
 
 class MailServer:
-
     server = None
 
     def __init__(self):
@@ -27,15 +26,19 @@ class MailServer:
         self.__send(email, MESSAGE_PASSWORD % password, MESSAGE_PASSWORD_PLAIN % password, "password " + password)
 
     def __send(self, email, html, plain, tag=""):
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = SUBJECT
-        msg['From'] = EMAIL
-        msg['To'] = email
-        msg.attach(MIMEText(plain, 'plain'))
-        msg.attach(MIMEText(html, 'html'))
-        print("Sending", tag, "to", email)
-        self.server.sendmail(EMAIL, email, msg.as_string())
+        try:
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = SUBJECT
+            msg['From'] = EMAIL
+            msg['To'] = email
+            msg.attach(MIMEText(plain, 'plain'))
+            msg.attach(MIMEText(html, 'html'))
+            print("Sending", tag, "to", email)
+            self.server.sendmail(EMAIL, email, msg.as_string())
+        except Exception as e:
+            print(e)
+            self.__del__()
+            self.__init__()
 
     def __del__(self):
         self.server.quit()
-
