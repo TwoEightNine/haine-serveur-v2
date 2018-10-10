@@ -6,11 +6,11 @@ import prime
 import logging
 import os
 from keys import *
+from secret import PORT
 import file_utils
 import mail_utils
 
 HOST = '0.0.0.0'
-PORT = 1753
 
 app = Flask(__name__)
 db_path = os.path.join(os.path.dirname(__file__), 'haine.db')

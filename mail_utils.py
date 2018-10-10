@@ -1,14 +1,13 @@
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from secret import PASSWORD
+from secret import *
 from mail_templates import *
 
 SMTP_HOST = 'smtp.bk.ru'
 SMTP_PORT = 25
-EMAIL = "haine.officielle@bk.ru"
 SUBJECT = "Haine Messenger"
-ACTIVATION_LINK = "localhost:1753/activate?code=%s"
+ACTIVATION_LINK = "http://" + HOST + ":" + str(PORT) + "/activate?code=%s"
 
 
 class MailServer:
